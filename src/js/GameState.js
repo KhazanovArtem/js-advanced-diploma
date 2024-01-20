@@ -1,20 +1,30 @@
 export default class GameState {
   constructor() {
-    this.countlevel = 1;
-    this.level = null;
     this.charactersCount = 4;
     this.positions = [];
     this.currentMove = 'player';
-    this.selectedCell = null;
-    this.selectedCellIndex = null;
-    this.selectedCharacter = null;
-    this.selectedCellCoordinates = null;
-    this.isAvailableToMove = false;
-    this.isAvailableToAttack = false;
-    this.goodTypes = ['bowman', 'swordsman', 'magician'];
-    this.badTypes = ['vampire', 'undead', 'daemon'];
-    this.goodTeam = [];
-    this.badTeam = [];
+    this.level = {
+      count: 1,
+      area: null
+    }
+    this.selected = {
+      cell: null,
+      coordinates: null,
+      index: null,
+      character: null
+    }
+    this.isAvailable = {
+      toMove: false,
+      toAttack: false
+    }
+    this.types = {
+      good: ['bowman', 'swordsman', 'magician'],
+      bad: ['vampire', 'undead', 'daemon']
+    }
+    this.team = {
+      good: [],
+      bad: []
+    }
     // TODO: create object
   }
 }

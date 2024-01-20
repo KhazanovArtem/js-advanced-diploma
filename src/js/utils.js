@@ -1,3 +1,4 @@
+import themes from './themes'
 /**
  * @todo
  * @param index - индекс поля
@@ -91,6 +92,12 @@ export function getCoordinates(index, square) {
     }
   }
   return coordinates;
+}
+
+export function randomBoard() {
+  const boards = Object.keys(themes);
+  const key = boards[Math.floor(Math.random() * boards.length)];
+  return themes[key];
 }
 
 function getIndex(coordinates, square) {

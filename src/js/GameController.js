@@ -1,6 +1,6 @@
 import GameState from './GameState'
 import { characterGenerator, generateTeam, genPosGood, genPosBad } from './generators'
-import { getInfo, getCoordinates, randomIndex } from './utils';
+import { getInfo, getCoordinates, randomIndex, randomBoard } from './utils';
 import GamePlay from './GamePlay'
 import PositionedCharacter from './PositionedCharacter';
 import Team from './Team'
@@ -11,7 +11,6 @@ import Magician from './characters/Magician'
 import Swordsman from './characters/Swordsman'
 import Undead from './characters/Undead'
 import Vampire from './characters/Vampire'
-import themes from './themes'
 import cursors from './cursors'
 
 export default class GameController {
@@ -38,7 +37,7 @@ export default class GameController {
   }
 
   begin() {
-    this.gameState.level = themes[this.randomBoard()];
+    this.gameState.level.area = randomBoard();
     this.createTeams();
     this.drawBoard();
   }
@@ -50,7 +49,7 @@ export default class GameController {
     this.gamePlay.addCellLeaveListener(this.onCellLeave.bind(this));
     this.gamePlay.addCellClickListener(this.onCellClick.bind(this));
     this.currentCellIdx = null;
-    this.gameState.level = themes[this.randomBoard()];
+    this.gameState.level.area = randomBoard();
     this.createTeams();
     this.drawBoard();
   }
@@ -63,70 +62,65 @@ export default class GameController {
     if (this.stateService.storage.length > 0/* сохраненная игра */) {
       const loadedGame = this.stateService.load();
       this.gameState = new GameState();
-      this.gameState.level = loadedGame.level;
-      this.gameState.countlevel = loadedGame.countlevel;
+      this.gameState.level.area = loadedGame.level.area;
+      this.gameState.level.count = loadedGame.level.count;
       this.gameState.charactersCount = loadedGame.charactersCount;
       this.gameState.positions = loadedGame.positions;
       this.gameState.currentMove = loadedGame.currentMove;
-      this.gameState.selectedCell = loadedGame.selectedCell;
-      this.gameState.selectedCellIndex = loadedGame.selectedCellIndex;
-      this.gameState.selectedCharacter = loadedGame.selectedCharacter;
-      this.gameState.selectedCellCoordinates = loadedGame.selectedCellCoordinates;
-      this.gameState.isAvailableToMove = loadedGame.isAvailableToMove;
-      this.gameState.isAvailableToAttack = loadedGame.isAvailableToAttack;
+      this.gameState.selected.cell = loadedGame.selected.cell;
+      this.gameState.selected.index = loadedGame.selected.index;
+      this.gameState.selected.character = loadedGame.selected.character;
+      this.gameState.selected.coordinates = loadedGame.selected.coordinates;
+      this.gameState.isAvailable.toMove = loadedGame.isAvailable.toMove;
+      this.gameState.isAvailable.toAttack = loadedGame.isAvailable.toAttack;
       const goodChars = [];
       const badChars = [];
       this.gameState.positions.forEach((pos) => {
         Object.setPrototypeOf(pos.character, Character.prototype);
-        if (this.gameState.goodTypes.some((item) => item === pos.character.type)) {
+        if (this.gameState.types.good.some((item) => item === pos.character.type)) {
           goodChars.push(pos.character);
         }
-        if (this.gameState.badTypes.some((item) => item === pos.character.type)) {
+        if (this.gameState.types.bad.some((item) => item === pos.character.type)) {
           badChars.push(pos.character);
         }
       });
-      this.gameState.goodTeam = new Team(goodChars);
-      this.gameState.badTeam = new Team(badChars);
+      this.gameState.team.good = new Team(goodChars);
+      this.gameState.team.bad = new Team(badChars);
       this.drawBoard();
     }
   }
 
   createTeams() {
-    if (this.gameState.countlevel === 1) {
-      this.gameState.goodTeam = generateTeam(this.goodtypes, this.gameState.countlevel, this.gameState.charactersCount);
-      this.gameState.badTeam = generateTeam(this.badtypes, this.gameState.countlevel, this.gameState.charactersCount);
+    if (this.gameState.level.count === 1) {
+      this.gameState.team.good = generateTeam(this.goodtypes, this.gameState.level.count, this.gameState.charactersCount);
+      this.gameState.team.bad = generateTeam(this.badtypes, this.gameState.level.count, this.gameState.charactersCount);
     } else {
-      const countForGoods = this.numberOfCharactersToAdd(this.gameState.goodTeam.characters);
-      const countForBads = this.numberOfCharactersToAdd(this.gameState.badTeam.characters);
+      const countForGoods = this.numberOfCharactersToAdd(this.gameState.team.good.characters);
+      const countForBads = this.numberOfCharactersToAdd(this.gameState.team.bad.characters);
       const goodChars = [];
       const badChars = [];
       for (let i = 1; i <= countForGoods; i += 1) {
-        goodChars.push(characterGenerator(this.goodtypes, this.gameState.countlevel).next().value);
+        goodChars.push(characterGenerator(this.goodtypes, this.gameState.level.count).next().value);
       }
       for (let i = 1; i <= countForBads; i += 1) {
-        badChars.push(characterGenerator(this.badtypes, this.gameState.countlevel).next().value);
+        badChars.push(characterGenerator(this.badtypes, this.gameState.level.count).next().value);
       }
-      goodChars.forEach((item) => this.gameState.goodTeam.characters.push(item));
-      badChars.forEach((item) => this.gameState.badTeam.characters.push(item));
+      goodChars.forEach((item) => this.gameState.team.good.characters.push(item));
+      badChars.forEach((item) => this.gameState.team.bad.characters.push(item));
     }
     const posgood = genPosGood(this.gameState.charactersCount);
     const posbad = genPosBad(this.gameState.charactersCount);
-    this.gameState.goodTeam.characters.forEach((item) => {
+    this.gameState.team.good.characters.forEach((item) => {
       this.gameState.positions.push(new PositionedCharacter(item, posgood.next().value));
     });
-    this.gameState.badTeam.characters.forEach((item) => {
+    this.gameState.team.bad.characters.forEach((item) => {
       this.gameState.positions.push(new PositionedCharacter(item, posbad.next().value));
     });
   }
 
   drawBoard() {
-    this.gamePlay.drawUi(this.gameState.level);
+    this.gamePlay.drawUi(this.gameState.level.area);
     this.gamePlay.redrawPositions(this.gameState.positions);
-  }
-
-  randomBoard() {
-    const boards = Object.keys(themes);
-    return boards[Math.floor(Math.random() * boards.length)];
   }
 
   async onCellClick(index) {
@@ -137,27 +131,33 @@ export default class GameController {
     let isAvailableToAttack;
 
     if (currentCellWithChar) {
-      isEnemy = this.gameState.badTeam.characters.some((item) => currentCellWithChar.classList.contains(item.type));
+      isEnemy = this.gameState.team.bad.characters.some(item => 
+        currentCellWithChar.classList.contains(item.type));
     }
 
-    if (this.gameState.selectedCell) {
-      isAvailableToMove = this.availableTo(index, this.gameState.selectedCellCoordinates, this.gameState.selectedCharacter.moveDist);
-      isAvailableToAttack = this.availableTo(index, this.gameState.selectedCellCoordinates, this.gameState.selectedCharacter.attackDist);
+    if (this.gameState.selected.cell) {
+      let coordinates = this.gameState.selected.coordinates;
+      let attackDist = this.gameState.selected.character.attackDist;
+      let moveDist = this.gameState.selected.character.moveDist;
+      isAvailableToMove = this.availableTo(index, coordinates, moveDist);
+      isAvailableToAttack = this.availableTo(index, coordinates, attackDist);
     }
 
     // выбрать персонажа (есть персонаж в клетке && персонаж свой)
     if (currentCellWithChar && !isEnemy) {
-      this.gamePlay.deselectCell(this.gameState.selectedCellIndex);
+      this.gamePlay.deselectCell(this.gameState.selected.index);
       this.gamePlay.selectCell(index);
-      this.gameState.selectedCell = currentCell;
-      this.gameState.selectedCellIndex = index;
-      this.gameState.selectedCharacter = this.findCharacter(index);
-      this.gameState.selectedCellCoordinates = getCoordinates(index, this.gamePlay.boardSize);
+      this.gameState.selected = {
+        cell: currentCell,
+        index: index,
+        character: this.findCharacter(index),
+        coordinates: getCoordinates(index, this.gamePlay.boardSize)
+      };
     }
 
     // переместить персонажа в пустую клетку (в клетке нет персонажа && клетка в зоне хода)
     if (!currentCellWithChar && isAvailableToMove) {
-      this.gamePlay.deselectCell(this.gameState.selectedCellIndex);
+      this.gamePlay.deselectCell(this.gameState.selected.index);
       this.gamePlay.deselectCell(this.currentCellIdx);
       this.moveToAnEmptyCell(index);
       if (this.gameState.currentMove === 'player') {
@@ -167,11 +167,11 @@ export default class GameController {
 
     if (currentCellWithChar && isEnemy) {
       if (isAvailableToAttack) {
-        this.gamePlay.deselectCell(this.gameState.selectedCellIndex);
+        this.gamePlay.deselectCell(this.gameState.selected.index);
         this.gamePlay.deselectCell(this.currentCellIdx);
         const badCharacter = this.findCharacter(index);
-        await this.attack(this.gameState.selectedCharacter, badCharacter, index);
-        if (this.gameState.badTeam.characters.length === 0) {
+        await this.attack(this.gameState.selected.character, badCharacter, index);
+        if (this.gameState.team.bad.characters.length === 0) {
           this.gameLevelUp();
           return;
         }
@@ -199,15 +199,18 @@ export default class GameController {
     if (currentCellWithChar) {
       this.gamePlay.setCursor(cursors.pointer);
       this.gamePlay.showCellTooltip(getInfo(this.findCharacter(index)), index);
-      isBad = this.gameState.badTypes.some((item) => currentCellWithChar.classList.contains(item));
+      isBad = this.gameState.types.bad.some((item) => currentCellWithChar.classList.contains(item));
     }
 
-    if (this.gameState.selectedCell) {
-      isAvailableToMove = this.availableTo(index, this.gameState.selectedCellCoordinates, this.gameState.selectedCharacter.moveDist);
-      isAvailableToAttack = this.availableTo(index, this.gameState.selectedCellCoordinates, this.gameState.selectedCharacter.attackDist);
+    if (this.gameState.selected.cell) {
+      let coordinates = this.gameState.selected.coordinates;
+      let attackDist = this.gameState.selected.character.attackDist;
+      let moveDist = this.gameState.selected.character.moveDist;
+      isAvailableToMove = this.availableTo(index, coordinates, moveDist);
+      isAvailableToAttack = this.availableTo(index, coordinates, attackDist);
     }
 
-    if (this.gameState.selectedCell) {
+    if (this.gameState.selected.cell) {
       // если наведенная клетка в зоне хода
       if (isAvailableToMove) {
         // если наведенная клетка пустая
@@ -250,7 +253,6 @@ export default class GameController {
   numberOfCharactersToAdd(team) {
     return this.gameState.charactersCount - team.length;
   }
-
     // АТАКА
     async attack(attacker, target, targetIndex) {
     const damage = Math.floor(Math.max(attacker.attack - target.defence, attacker.attack * 0.2));
@@ -263,55 +265,56 @@ export default class GameController {
   }
 
     // ПЕРЕХОД НА СЛЕД. УРОВЕНЬ
-    gameLevelUp() {
-      if (this.gameState.currentMove === 'enemy') {
-        // Проигрыш
-        // eslint-disable-next-line
-        alert('Вы проиграли.\nЧтобы начать новую игру нажмите "New game".');
-        this.blockBoard();
-        return;
-      }
-      this.gameState.countlevel += 1;
-      if (this.gameState.countlevel > 4) {
-        // Победа
-        this.blockBoard();
-        // eslint-disable no-alert
-        alert('Поздравляю! Вы победили!');
-      } else {
-        // Переход на следующий уровень
-        /* eslint-disable no-alert */
-        alert(`Уровень пройден! Переход на уровень ${this.gameState.countlevel}`);
-        this.gameState.goodTeam.characters.forEach((char) => char.levelUp());
-        this.gameState.charactersCount += 1;
-        this.gameState.positions = [];
-        this.gameState.level = themes[this.randomBoard()];
-        this.createTeams();
-        this.drawBoard();
-      }
+  gameLevelUp() {
+    if (this.gameState.currentMove === 'enemy') {
+      // Проигрыш
+      // eslint-disable-next-line
+      alert('Вы проиграли.\nЧтобы начать новую игру нажмите "New game".');
+      this.blockBoard();
+      return;
     }
+    this.gameState.level.count += 1;
+    if (this.gameState.level.count > 4) {
+      // Победа
+      this.blockBoard();
+      // eslint-disable no-alert
+      alert('Поздравляю! Вы победили!');
+    } else {
+      // Переход на следующий уровень
+      /* eslint-disable no-alert */
+      alert(`Уровень пройден! Переход на уровень ${this.gameState.level.count}`);
+      this.gameState.team.good.characters.forEach((char) => char.levelUp());
+      this.gameState.charactersCount += 1;
+      this.gameState.positions = [];
+      this.gameState.level.area = randomBoard();
+      this.createTeams();
+      this.drawBoard();
+    }
+  }
 
   // ПРОВЕРКА НА СМЕРТЬ
   checkDeath(character) {
     if (character.health <= 0) {
       let idx = this.gameState.positions.findIndex((item) => item.character.health <= 0);
       this.gameState.positions.splice(idx, 1);
-      idx = this.gameState.badTeam.characters.findIndex((item) => item.health <= 0);
-      this.gameState.badTeam.characters.splice(idx, 1);
+      idx = this.gameState.team.bad.characters.findIndex((item) => item.health <= 0);
+      this.gameState.team.bad.characters.splice(idx, 1);
     }
   }
 
   clearSelectedCell() {
-    this.gameState.selectedCell = null;
-    this.gameState.selectedCellIndex = null;
-    this.gameState.selectedCharacter = null;
-    this.gameState.selectedCellCoordinates = null;
-    this.gameState.isAvailableToMove = false;
-    this.gameState.isAvailableToAttack = false;
+    Object.assign(this.gameState, {
+      selectedCellIndex: null,
+      selectedCharacter: null,
+      selectedCellCoordinates: null,
+      isAvailableToMove: false,
+      isAvailableToAttack: false
+    });
   }
 
   moveToAnEmptyCell(index) {
     // находим индекс выделенного персонажа в массиве this.gameState.positions
-    const idx = this.gameState.positions.findIndex((item) => item.position === this.gameState.selectedCellIndex);
+    const idx = this.gameState.positions.findIndex((item) => item.position === this.gameState.selected.index);
     this.gameState.positions[idx].position = index;
     this.gamePlay.redrawPositions(this.gameState.positions);
     this.clearSelectedCell();
@@ -332,23 +335,23 @@ export default class GameController {
 
   async badMove() {
     this.gameState.currentMove = 'enemy';
-    const { goodTeam } = this.gameState;
-    const { badTeam } = this.gameState;
+    const { good } = this.gameState.team;
+    const { bad } = this.gameState.team;
     let isAvailableToAttack;
     const arrOfBadPos = [];
     // меняем местами команды, теперь противник становится игроком и наоборот
-    this.gameState.goodTeam = badTeam;
-    this.gameState.badTeam = goodTeam;
+    this.gameState.team.good = bad;
+    this.gameState.team.bad = good;
 
     // перебираем индексы персонажей в позициях; если персонаж противника, то переводим его индекс в координаты и добавляем в массив
     this.gameState.positions.forEach((item) => {
-      if (this.gameState.badTeam.characters.some((char) => char.type === item.character.type)) {
+      if (this.gameState.team.bad.characters.some((char) => char.type === item.character.type)) {
         arrOfBadPos.push(item.position);
       }
     });
 
     // перебираем персонажей в команде для определения возможности атаки
-    for (const char of this.gameState.goodTeam.characters) {
+    for (const char of this.gameState.team.good.characters) {
       // если ход противника (компьютера)
       if (this.gameState.currentMove === 'enemy') {
         // то находим индекс персонажа в позициях
@@ -357,14 +360,16 @@ export default class GameController {
         await this.onCellClick(this.gameState.positions[idx].position);
         // перебираем позиции противника
         for (const pos of arrOfBadPos) {
+          let coordinates = this.gameState.selected.coordinates;
+          let attackDist = this.gameState.selected.character.attackDist;
           // определяем возможна ли атака
-          isAvailableToAttack = this.availableTo(pos, this.gameState.selectedCellCoordinates, this.gameState.selectedCharacter.attackDist);
+          isAvailableToAttack = this.availableTo(pos, coordinates, attackDist);
           // если возможна, то атакуем и передаем ход
           if (isAvailableToAttack) {
             await this.onCellClick(pos);
             this.gameState.currentMove = 'player';
-            this.gameState.goodTeam = goodTeam;
-            this.gameState.badTeam = badTeam;
+            this.gameState.team.good = good;
+            this.gameState.team.bad = bad;
             break;
           }
         }
@@ -372,10 +377,12 @@ export default class GameController {
     }
     // если атака невозможна, то перемещаем последнего из предыдущей итерации персонажа в пустую клетку
     if (this.gameState.currentMove === 'enemy') {
-      await this.onCellClick(randomIndex(this.gameState.selectedCellCoordinates, this.gameState.selectedCharacter.moveDist, this.gamePlay.boardSize));
+      let coordinates = this.gameState.selected.coordinates;
+      let moveDist = this.gameState.selected.character.moveDist;
+      await this.onCellClick(randomIndex(coordinates, moveDist, this.gamePlay.boardSize));
       this.gameState.currentMove = 'player';
-      this.gameState.goodTeam = goodTeam;
-      this.gameState.badTeam = badTeam;
+      this.gameState.team.good = good;
+      this.gameState.team.bad = bad;
     }
   }
 
